@@ -12,13 +12,16 @@ type Receipt struct {
 	InputCopy        map[string]string
 	OutputCopy       map[string]string
 	UseControlSocket bool
+	UseLocalImage    bool
 	OnlyCreate       bool
 }
 
 func RunReceipt(cm Manager, receipt Receipt) error {
-	err := cm.PullImage(receipt.Image)
-	if err != nil {
-		return err
+	if !receipt.UseLocalImage {
+		err := cm.PullImage(receipt.Image)
+		if err != nil {
+			return err
+		}
 	}
 
 	mounts := []Mount{}
