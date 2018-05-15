@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"sync"
 
 	log "github.com/sirupsen/logrus"
 
@@ -25,28 +24,29 @@ import (
 type DockerManager struct {
 	client  *client.Client
 	context context.Context
-	mutex   *sync.Mutex
-	cancel  context.CancelFunc
 }
 
-func NewDockerManager() (*DockerManager, error) {
+func NewDockerManagerWithContext(ctx context.Context) (*DockerManager, error) {
 	cli, err := client.NewEnvClient()
 	if err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
 
 	cli.NegotiateAPIVersion(ctx)
 
 	dm := &DockerManager{
 		client:  cli,
 		context: ctx,
-		mutex:   &sync.Mutex{},
-		cancel:  cancel,
 	}
 
 	return dm, nil
+}
+
+func NewDockerManager() (*DockerManager, error) {
+	ctx := context.Background()
+	dm, err := NewDockerManagerWithContext(ctx)
+
+	return dm, err
 }
 
 func (dm *DockerManager) PullImage(image string) error {

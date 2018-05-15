@@ -3,6 +3,7 @@ package contman
 import (
 	"errors"
 	"os"
+	"time"
 )
 
 type Receipt struct {
@@ -11,6 +12,7 @@ type Receipt struct {
 	Env              map[string]string
 	InputCopy        map[string]string
 	OutputCopy       map[string]string
+	Timeout          time.Duration
 	UseControlSocket bool
 	UseLocalImage    bool
 	OnlyCreate       bool
@@ -42,6 +44,10 @@ func RunReceipt(cm Manager, receipt Receipt) error {
 	}
 
 	defer func() {
+		isRunning, _ := cntr.IsRunning()
+		if isRunning {
+			cntr.Stop(receipt.Timeout)
+		}
 		cntr.Remove()
 	}()
 

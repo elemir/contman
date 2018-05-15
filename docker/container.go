@@ -1,8 +1,10 @@
 package docker
 
 import (
+	"context"
 	"io"
 	"os"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -17,29 +19,48 @@ type DockerContainer struct {
 }
 
 func (dc *DockerContainer) Start() error {
-	dm := dc.manager
-	err := dm.client.ContainerStart(dm.context, dc.id, types.ContainerStartOptions{})
+	ctx := dc.getContext()
+	err := dc.manager.client.ContainerStart(ctx, dc.id, types.ContainerStartOptions{})
 	if err != nil {
 		dc.GetLogger().WithError(err).Error("Error starting container")
 	}
 	return err
 }
 
+func (dc *DockerContainer) Stop(timeout time.Duration) error {
+	ctx := dc.getContext()
+	err := dc.manager.client.ContainerStop(ctx, dc.id, &timeout)
+	if err != nil {
+		dc.GetLogger().WithError(err).Error("Error stopping container")
+	}
+	return err
+}
+
 func (dc *DockerContainer) Remove() error {
-	dm := dc.manager
-	err := dm.client.ContainerRemove(dm.context, dc.id, types.ContainerRemoveOptions{})
+	ctx := dc.getContext()
+	err := dc.manager.client.ContainerRemove(ctx, dc.id, types.ContainerRemoveOptions{})
 	if err != nil {
 		dc.GetLogger().WithError(err).Errorf("Error removing container")
 	}
 	return err
 }
 
+func (dc *DockerContainer) IsRunning() (bool, error) {
+	ctx := dc.getContext()
+	descr, err := dc.manager.client.ContainerInspect(ctx, dc.id)
+	if err != nil {
+		dc.GetLogger().WithError(err).Errorf("Error checking container running status")
+	}
+	run := descr.ContainerJSONBase != nil && descr.State != nil && descr.State.Running
+	return run, err
+}
+
 func (dc *DockerContainer) Wait(dumpLog bool) (int, error) {
+	ctx := dc.getContext()
 	var exitCode int
 
-	dm := dc.manager
 	if dumpLog {
-		out, err := dm.client.ContainerLogs(dm.context, dc.id, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true, Follow: true})
+		out, err := dc.manager.client.ContainerLogs(ctx, dc.id, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true, Follow: true})
 		if err != nil {
 			dc.GetLogger().WithError(err).Error("Error getting container logs")
 			return 0, err
@@ -48,7 +69,7 @@ func (dc *DockerContainer) Wait(dumpLog bool) (int, error) {
 		go func() { _, _ = stdcopy.StdCopy(os.Stdout, os.Stderr, out) }()
 	}
 
-	statusCh, errCh := dm.client.ContainerWait(dm.context, dc.id, container.WaitConditionNotRunning)
+	statusCh, errCh := dc.manager.client.ContainerWait(ctx, dc.id, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
 		if err != nil {
@@ -63,12 +84,12 @@ func (dc *DockerContainer) Wait(dumpLog bool) (int, error) {
 }
 
 func (dc *DockerContainer) CopyFrom(src, dest string) error {
-	dm := dc.manager
+	ctx := dc.getContext()
 	l := dc.GetLogger().WithFields(log.Fields{
 		"src":  src,
 		"dest": dest,
 	})
-	reader, stat, err := dm.client.CopyFromContainer(dm.context, dc.id, src)
+	reader, stat, err := dc.manager.client.CopyFromContainer(ctx, dc.id, src)
 	if err != nil {
 		l.WithError(err).Error("Error copying from container")
 		return err
@@ -87,7 +108,7 @@ func (dc *DockerContainer) CopyFrom(src, dest string) error {
 }
 
 func (dc *DockerContainer) CopyTo(src, dest string) error {
-	dm := dc.manager
+	ctx := dc.getContext()
 	l := log.WithFields(log.Fields{
 		"src":  src,
 		"dest": dest,
@@ -105,7 +126,7 @@ func (dc *DockerContainer) CopyTo(src, dest string) error {
 
 	}()
 
-	err := dm.client.CopyToContainer(dm.context, dc.id, dest, reader, types.CopyToContainerOptions{})
+	err := dc.manager.client.CopyToContainer(ctx, dc.id, dest, reader, types.CopyToContainerOptions{})
 	if err != nil {
 		l.WithError(err).Error("Error copying to container")
 		return err
@@ -116,4 +137,13 @@ func (dc *DockerContainer) CopyTo(src, dest string) error {
 
 func (dc *DockerContainer) GetLogger() *log.Entry {
 	return log.WithField("containerID", dc.id)
+}
+
+func (dc *DockerContainer) getContext() context.Context {
+	select {
+	case <-dc.manager.context.Done():
+		return context.TODO()
+	default:
+		return dc.manager.context
+	}
 }

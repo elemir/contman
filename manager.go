@@ -1,6 +1,8 @@
 package contman
 
 import (
+	"time"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -19,7 +21,10 @@ type Config struct {
 
 type Container interface {
 	Start() error
+	Stop(timeout time.Duration) error
 	Remove() error
+
+	IsRunning() (bool, error)
 	Wait(dumpLog bool) (int, error)
 
 	CopyFrom(src, dest string) error
