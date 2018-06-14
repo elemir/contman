@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	docker "github.com/fsouza/go-dockerclient"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/docker/distribution/reference"
@@ -16,7 +17,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
-	"github.com/fsouza/go-dockerclient"
 
 	"github.com/elemir/contman"
 )
@@ -103,11 +103,6 @@ OuterLoop:
 }
 
 func (dm *DockerManager) ContainerCreate(config contman.Config) (contman.Container, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-
 	mounts := make([]mount.Mount, len(config.Mounts))
 	for i, m := range config.Mounts {
 		mounts[i] = mount.Mount{
@@ -125,24 +120,23 @@ func (dm *DockerManager) ContainerCreate(config contman.Config) (contman.Contain
 		i++
 	}
 
-	resp, err := dm.client.ContainerCreate(dm.context,
-		&container.Config{
-			Image:      config.Image,
-			Entrypoint: []string{"sh"},
-			Cmd: []string{
-				"-c",
-				config.Cmd,
-			},
-			WorkingDir: wd,
-			Env:        env,
+	containerConfig := &container.Config{
+		Image:      config.Image,
+		Entrypoint: []string{"sh"},
+		Cmd: []string{
+			"-c",
+			config.Cmd,
 		},
-		&container.HostConfig{
-			Mounts:      mounts,
-			NetworkMode: "host",
-		},
-		nil,
-		"",
-	)
+		WorkingDir: config.WorkingDir,
+		Env:        env,
+	}
+
+	hostConfig := &container.HostConfig{
+		Mounts:      mounts,
+		NetworkMode: "host",
+	}
+
+	resp, err := dm.client.ContainerCreate(dm.context, containerConfig, hostConfig, nil, "")
 
 	if err != nil {
 		log.WithError(err).Error("Error creating container")

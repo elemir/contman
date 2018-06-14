@@ -7,15 +7,16 @@ import (
 )
 
 type Receipt struct {
-	Image            string
-	Cmd              string
-	Env              map[string]string
-	InputCopy        map[string]string
-	OutputCopy       map[string]string
-	Timeout          time.Duration
-	UseControlSocket bool
-	UseLocalImage    bool
-	OnlyCreate       bool
+	Image              string
+	Cmd                string
+	Env                map[string]string
+	InputCopy          map[string]string
+	OutputCopy         map[string]string
+	Timeout            time.Duration
+	UseControlSocket   bool
+	UseLocalImage      bool
+	OnlyCreate         bool
+	UseImageWorkingDir bool
 }
 
 func RunReceipt(cm Manager, receipt Receipt) error {
@@ -32,12 +33,23 @@ func RunReceipt(cm Manager, receipt Receipt) error {
 		mounts = cm.GetSystemMounts()
 	}
 
-	cntr, err := cm.ContainerCreate(Config{
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	config := Config{
 		Image:  receipt.Image,
 		Cmd:    receipt.Cmd,
 		Env:    receipt.Env,
 		Mounts: mounts,
-	})
+	}
+
+	if !receipt.UseImageWorkingDir {
+		config.WorkingDir = wd
+	}
+
+	cntr, err := cm.ContainerCreate(config)
 
 	if err != nil {
 		return err

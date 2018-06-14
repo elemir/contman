@@ -13,10 +13,11 @@ type Mount struct {
 }
 
 type Config struct {
-	Image  string
-	Cmd    string
-	Env    map[string]string
-	Mounts []Mount
+	Image      string
+	Cmd        string
+	Env        map[string]string
+	Mounts     []Mount
+	WorkingDir string
 }
 
 type Container interface {
