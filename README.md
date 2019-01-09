@@ -1,4 +1,5 @@
 # contman ![CircleCI](https://img.shields.io/circleci/project/github/elemir/contman.svg) ![license](https://img.shields.io/github/license/elemir/contman.svg)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Felemir%2Fcontman.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Felemir%2Fcontman?ref=badge_shield)
 
 Library for high-level control of container system, running commands and prepared receipts. It provides three main abstractions: Manager, Container and Receipt. Manager allow container creation and using images, Container has all basic actions of using specific container. Main and most interesting this is Receipt
 
@@ -50,3 +51,7 @@ func main() {
 
 This code will change all 'README.md' entrances in README.md file to 'WRITEYOU.md'
 
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Felemir%2Fcontman.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Felemir%2Fcontman?ref=badge_large)
